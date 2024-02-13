@@ -46,7 +46,7 @@ const App = () => {
         const arrayBuffer = await audioFileToArrayBuffer({ file });
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
         audioRef.current.src = URL.createObjectURL(file);
-        audioRef.current.onloadedmetadata = () => {
+        audioRef.current.onloadedmetadata = (e) => {
           document.getElementById('audio-start-duration').innerText = '00:00';
           setAudioData(audioBuffer);
         };
@@ -124,7 +124,7 @@ const App = () => {
         </div>
         <div className='w-full flex justify-between items-center gap-4 text-slate-500'>
           <span id='audio-start-duration'>00:00</span>
-          <Seeker {...{ audioData, setCurrentTime, audioRef }} />
+          <Seeker />
           <span id='audio-end-duration'>{formatAudioDuration(audioData?.duration) ?? '00:00'}</span>
         </div>
       </div>
