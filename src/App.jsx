@@ -2,17 +2,33 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useIcons } from './hooks/useIcons';
 import { audioFileToArrayBuffer, formatAudioDuration } from './functions';
 
-let startTime = 0;
+let requestFramID;
 
 const App = () => {
   const { PlayIcon, PauseIcon, SeekBack5Icon, SeekNext5Icon, SipnnerIcon } = useIcons();
   const { current: audioContext } = useRef(new AudioContext());
-  let audioSourceRef = useRef(null);
+  const audioRef = useRef(new Audio());
   const [audioFile, setAudioFile] = useState(null);
   const [audioData, setAudioData] = useState(null);
   const [isLoadingFile, setIsLoadingFile] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+
+  const fn = useCallback(() => {
+    document.getElementById('audio-start-duration').innerText = formatAudioDuration(audioRef.current.currentTime);
+    requestFramID = window.requestAnimationFrame(fn);
+  }, []);
+
+  const handlePlayAudio = (playAtTime) => {
+    audioRef.current.currentTime = playAtTime;
+    setCurrentTime(playAtTime);
+    audioRef.current.play();
+  };
+
+  const handlePauseAudio = () => {
+    audioRef.current.pause();
+    setCurrentTime(audioRef.current.currentTime);
+  };
 
   const handleLoadAudioFile = useCallback(
     async (file) => {
@@ -20,32 +36,31 @@ const App = () => {
       try {
         const arrayBuffer = await audioFileToArrayBuffer({ file });
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-        setAudioData(audioBuffer);
+        audioRef.current.src = URL.createObjectURL(file);
+        audioRef.current.onloadedmetadata = () => {
+          document.getElementById('audio-start-duration').innerText = '00:00';
+          setAudioData(audioBuffer);
+        };
+        audioRef.current.onplay = () => {
+          fn();
+          setIsPlaying(true);
+        };
+        audioRef.current.onpause = () => {
+          cancelAnimationFrame(requestFramID);
+          setIsPlaying(false);
+        };
+        audioRef.current.onended = () => {
+          document.getElementById('audio-start-duration').innerText = '00:00';
+          cancelAnimationFrame(requestFramID);
+          setIsPlaying(false);
+        };
       } catch (error) {
         console.log('Error while loading audio file', { error });
       }
       setIsLoadingFile(false);
     },
-    [audioContext]
+    [audioContext, fn]
   );
-
-  const handlePlayAudio = (playAtTime) => {
-    const audioSource = audioContext.createBufferSource();
-    audioSource.buffer = audioData;
-    audioSource.connect(audioContext.destination);
-    startTime = audioContext.currentTime - playAtTime;
-    audioSource.start(0, playAtTime);
-    audioSourceRef.current = audioSource;
-    setIsPlaying(true);
-  };
-
-  const handlePauseAudio = (playAtTime) => {
-    if (audioContext.state === 'running') {
-      audioSourceRef.current.stop();
-      setIsPlaying(false);
-      setCurrentTime(playAtTime ?? Math.floor(audioContext.currentTime - startTime));
-    }
-  };
 
   useEffect(() => {
     if (audioFile) {
@@ -58,7 +73,7 @@ const App = () => {
   }, [audioFile, handleLoadAudioFile]);
 
   return (
-    <div className='flex gap-8 items-start flex-col mx-auto'>
+    <div className='flex gap-8 items-start flex-col mx-auto select-none'>
       <input
         type='file'
         accept='audio/*'
@@ -75,7 +90,7 @@ const App = () => {
           {!isLoadingFile && (
             <>
               {!isPlaying && (
-                <span onClick={() => audioFile && handlePlayAudio(currentTime)}>
+                <span onClick={() => audioData && handlePlayAudio(currentTime)}>
                   <PlayIcon />
                 </span>
               )}
@@ -113,6 +128,7 @@ const Seeker = () => {
     <div className='w-full rounded-md shadow-sm h-2 bg-white relative cursor-pointer z-50'>
       {/* thumb */}
       <span
+        id='seeker-thumb'
         className='w-4 h-4 bg-teal-500 hover:bg-teal-600 inline-block rounded-full absolute top-[-4px]
       left-[-8px]
       cursor-pointer z-30'
