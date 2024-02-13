@@ -3,6 +3,7 @@ import { useIcons } from './hooks/useIcons';
 import { audioFileToArrayBuffer, formatAudioDuration } from './functions';
 
 let requestFramID;
+let intervalID;
 
 const App = () => {
   const { PlayIcon, PauseIcon, SeekBack5Icon, SeekNext5Icon, SipnnerIcon } = useIcons();
@@ -14,9 +15,9 @@ const App = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
 
-  const fn = useCallback(() => {
+  const requestAnimationFrame = useCallback(() => {
     document.getElementById('audio-start-duration').innerText = formatAudioDuration(audioRef.current.currentTime);
-    requestFramID = window.requestAnimationFrame(fn);
+    requestFramID = window.requestAnimationFrame(requestAnimationFrame);
   }, []);
 
   const handlePlayAudio = (playAtTime) => {
@@ -27,7 +28,6 @@ const App = () => {
 
   const handlePauseAudio = () => {
     audioRef.current.pause();
-    setCurrentTime(audioRef.current.currentTime);
   };
 
   const handleLoadAudioFile = useCallback(
@@ -42,11 +42,12 @@ const App = () => {
           setAudioData(audioBuffer);
         };
         audioRef.current.onplay = () => {
-          fn();
+          requestAnimationFrame();
           setIsPlaying(true);
         };
         audioRef.current.onpause = () => {
           cancelAnimationFrame(requestFramID);
+          setCurrentTime(audioRef.current.currentTime);
           setIsPlaying(false);
         };
         audioRef.current.onended = () => {
@@ -59,7 +60,7 @@ const App = () => {
       }
       setIsLoadingFile(false);
     },
-    [audioContext, fn]
+    [audioContext, requestAnimationFrame]
   );
 
   useEffect(() => {
@@ -110,9 +111,9 @@ const App = () => {
             <SeekNext5Icon />
           </span>
         </div>
-        <div className='w-full flex justify-between items-center gap-4 text-slate-500'>
+        <div className='w-full flex justify-between items-center gap-2 text-slate-500'>
           <span id='audio-start-duration'>00:00</span>
-          <Seeker />
+          <input type='range' className='w-full' />
           <span id='audio-end-duration'>{formatAudioDuration(audioData?.duration) ?? '00:00'}</span>
         </div>
       </div>
@@ -121,20 +122,3 @@ const App = () => {
 };
 
 export default App;
-
-const Seeker = () => {
-  return (
-    // track
-    <div className='w-full rounded-md shadow-sm h-2 bg-white relative cursor-pointer z-50'>
-      {/* thumb */}
-      <span
-        id='seeker-thumb'
-        className='w-4 h-4 bg-teal-500 hover:bg-teal-600 inline-block rounded-full absolute top-[-4px]
-      left-[-8px]
-      cursor-pointer z-30'
-      ></span>
-      {/* seeker */}
-      <div id='audio-seeker' className='w-0 rounded-md h-2 bg-blue-400 relative cursor-pointer z-10'></div>
-    </div>
-  );
-};
