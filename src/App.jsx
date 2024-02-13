@@ -1,54 +1,98 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useIcons } from './hooks/useIcons';
-import { audioFileToArrayBuffer, formatAudioDuration } from './functions';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useIcons } from "./hooks/useIcons";
+import {
+  audioFileToDataURL,
+  formatAudioDuration,
+  getNodeByID,
+} from "./functions";
 
 let requestFramID;
-let intervalID;
+
+const moveSeeker = (percentage = 0) => {
+  const seekerThumb = getNodeByID("seeker-thumb");
+  const audioSeeked = getNodeByID("audio-seeked");
+  seekerThumb.style.left = `${percentage}%`;
+  audioSeeked.style.width = `${percentage}%`;
+};
 
 const App = () => {
-  const { PlayIcon, PauseIcon, SeekBack5Icon, SeekNext5Icon, SipnnerIcon } = useIcons();
-  const { current: audioContext } = useRef(new AudioContext());
+  const { PlayIcon, PauseIcon, SeekBack5Icon, SeekNext5Icon, SipnnerIcon } =
+    useIcons();
   const audioRef = useRef(new Audio());
   const [audioFile, setAudioFile] = useState(null);
-  const [audioData, setAudioData] = useState(null);
   const [isLoadingFile, setIsLoadingFile] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
+  const [playAt, setPlayAt] = useState(0);
 
-  const moveSeekerNormally = () => {
-    const seekerThumb = document.getElementById('seeker-thumb');
-    const audioSeeked = document.getElementById('audio-seeked');
-    const per = (audioRef.current.currentTime / audioRef.current.duration) * 100;
-    seekerThumb.style.left = `${per - 1}%`;
-    audioSeeked.style.width = `${per}%`;
-  };
-
+  // checked
   const requestAnimationFrame = useCallback(() => {
-    document.getElementById('audio-start-duration').innerText = formatAudioDuration(audioRef.current.currentTime);
-    moveSeekerNormally();
+    getNodeByID("audio-passed-duration").innerText = formatAudioDuration(
+      audioRef.current.currentTime
+    );
+    const percentage =
+      (audioRef.current.currentTime / audioRef.current.duration) * 100;
+    moveSeeker(percentage);
     requestFramID = window.requestAnimationFrame(requestAnimationFrame);
   }, []);
 
-  const handlePlayAudio = (playAtTime) => {
-    audioRef.current.currentTime = playAtTime;
-    setCurrentTime(playAtTime);
-    audioRef.current.play();
+  const handleSeek5Next = () => {
+    handlePlayAudio();
+    if (audioRef.current.currentTime + 5 > audioRef.current.duration) {
+      getNodeByID("audio-passed-duration").innerText = "00:00";
+      moveSeeker();
+      setPlayAt(0);
+    } else {
+      getNodeByID("audio-passed-duration").innerText = formatAudioDuration(
+        audioRef.current.currentTime + 5
+      );
+      const percentage =
+        ((audioRef.current.currentTime + 5) / audioRef.current.duration) * 100;
+      moveSeeker(percentage);
+      setPlayAt(audioRef.current.currentTime + 5);
+    }
+    handlePlayAudio(audioRef.current.currentTime + 5);
   };
 
+  const handleSeek5Back = () => {
+    handlePlayAudio();
+    if (audioRef.current.currentTime - 5 < 0) {
+      getNodeByID("audio-passed-duration").innerText = "00:00";
+      moveSeeker();
+      setPlayAt(0);
+    } else {
+      getNodeByID("audio-passed-duration").innerText = formatAudioDuration(
+        audioRef.current.currentTime - 5
+      );
+      const percentage =
+        ((audioRef.current.currentTime - 5) / audioRef.current.duration) * 100;
+      moveSeeker(percentage);
+      setPlayAt(audioRef.current.currentTime - 5);
+    }
+    handlePlayAudio(audioRef.current.currentTime + 5);
+  };
+
+  // checked
+  const handlePlayAudio = (playAtTime) => {
+    if (!isNaN(audioRef.current?.duration)) {
+      audioRef.current.currentTime = playAtTime;
+      setPlayAt(playAtTime);
+      audioRef.current.play();
+    }
+  };
+
+  // checked
   const handlePauseAudio = () => {
     audioRef.current.pause();
   };
 
+  // checked
   const handleLoadAudioFile = useCallback(
     async (file) => {
       setIsLoadingFile(true);
       try {
-        const arrayBuffer = await audioFileToArrayBuffer({ file });
-        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-        audioRef.current.src = URL.createObjectURL(file);
-        audioRef.current.onloadedmetadata = (e) => {
-          document.getElementById('audio-start-duration').innerText = '00:00';
-          setAudioData(audioBuffer);
+        audioRef.current.src = await audioFileToDataURL(file);
+        audioRef.current.onloadedmetadata = () => {
+          setIsLoadingFile(false);
         };
         audioRef.current.onplay = () => {
           requestAnimationFrame();
@@ -56,76 +100,85 @@ const App = () => {
         };
         audioRef.current.onpause = () => {
           cancelAnimationFrame(requestFramID);
-          setCurrentTime(audioRef.current.currentTime);
+          setPlayAt(audioRef.current.currentTime);
           setIsPlaying(false);
         };
         audioRef.current.onended = () => {
-          document.getElementById('audio-start-duration').innerText = '00:00';
-          document.getElementById('seeker-thumb').style.left = '0%';
-          document.getElementById('audio-seeked').style.width = '0%';
+          getNodeByID("audio-passed-duration").innerText = "00:00";
+          getNodeByID("seeker-thumb").style.left = "0%";
+          getNodeByID("audio-seeked").style.width = "0%";
           cancelAnimationFrame(requestFramID);
           setIsPlaying(false);
+          setPlayAt(0);
         };
       } catch (error) {
-        console.log('Error while loading audio file', { error });
+        console.log("Error while loading audio file", { error });
       }
-      setIsLoadingFile(false);
     },
-    [audioContext, requestAnimationFrame]
+    [requestAnimationFrame]
   );
 
+  // checked
   useEffect(() => {
     if (audioFile) {
       handleLoadAudioFile(audioFile);
     }
     return () => {
-      setAudioData(null);
       setIsLoadingFile(false);
     };
   }, [audioFile, handleLoadAudioFile]);
 
   return (
-    <div className='flex gap-8 items-start flex-col mx-auto select-none' id='audio-player-container'>
+    <div
+      className="flex gap-8 items-start flex-col mx-auto select-none"
+      id="audio-player-container"
+    >
       <input
-        type='file'
-        accept='audio/*'
+        type="file"
+        accept="audio/*"
         onChange={(e) => {
           setAudioFile(e.target.files[0]);
-          e.target.value = '';
+          e.target.value = "";
         }}
       />
-      <div className='p-4 w-2/3 bg-teal-300 m-4 rounded-md shadow-md flex flex-col gap-4'>
-        <div className='w-full flex gap-8 items-center justify-center [&>*]:cursor-pointer'>
-          <span>
+      <div className="p-4 w-2/3 bg-teal-300 m-4 rounded-md shadow-md flex flex-col gap-4">
+        <div className="w-full flex gap-8 items-center justify-center [&>*]:cursor-pointer">
+          <span onClick={handleSeek5Back}>
             <SeekBack5Icon />
           </span>
           {!isLoadingFile && (
             <>
               {!isPlaying && (
-                <span onClick={() => audioData && handlePlayAudio(currentTime)}>
+                <span
+                  onClick={() => audioRef.current && handlePlayAudio(playAt)}
+                >
                   <PlayIcon />
                 </span>
               )}
               {isPlaying && (
-                <span onClick={() => handlePauseAudio()}>
+                <span onClick={() => audioRef.current && handlePauseAudio()}>
                   <PauseIcon />
                 </span>
               )}
             </>
           )}
           {isLoadingFile && (
-            <span className='animate-spin duration-300'>
+            <span className="animate-spin duration-300">
               <SipnnerIcon />
             </span>
           )}
-          <span>
+          <span onClick={handleSeek5Next}>
             <SeekNext5Icon />
           </span>
         </div>
-        <div className='w-full flex justify-between items-center gap-4 text-slate-500'>
-          <span id='audio-start-duration'>00:00</span>
-          <Seeker />
-          <span id='audio-end-duration'>{formatAudioDuration(audioData?.duration) ?? '00:00'}</span>
+        <div className="w-full flex justify-between items-center gap-4 text-slate-500">
+          <span id="audio-passed-duration">00:00</span>
+          <Seeker audioRef={audioRef} setPlayAt={setPlayAt} />
+          <span>
+            {audioRef.current?.duration
+              ? formatAudioDuration(audioRef.current.duration)
+              : "00:00"}
+          </span>
         </div>
       </div>
     </div>
@@ -134,19 +187,16 @@ const App = () => {
 
 export default App;
 
-const Seeker = () => {
-  const seekerRef = useRef(null);
-  const thumbRef = useRef(null);
-  const audioSeekedRef = useRef(null);
+const Seeker = ({ audioRef, setPlayAt }) => {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleMouseMove = useCallback(
-    (event) => {
+    (e) => {
       if (!isDragging) return;
-      const seekerRect = seekerRef.current.getBoundingClientRect();
-      const offsetX = event.clientX - seekerRect.left;
-      const width = seekerRect.width;
-      let percentage = (offsetX / width) * 100;
+      const seekerTrackRect =
+        getNodeByID("seeker-track").getBoundingClientRect();
+      const offsetX = e.clientX - seekerTrackRect.left;
+      let percentage = (offsetX / seekerTrackRect.width) * 100;
 
       if (percentage < 0) {
         percentage = 0;
@@ -154,45 +204,59 @@ const Seeker = () => {
         percentage = 100;
       }
 
-      thumbRef.current.style.left = `${percentage - 1}%`;
-      audioSeekedRef.current.style.width = `${percentage}%`;
+      moveSeeker(percentage);
+
+      const playAt = (audioRef.current.duration / 100) * percentage;
+
+      getNodeByID("audio-passed-duration").innerText =
+        formatAudioDuration(playAt);
     },
-    [isDragging]
+    [audioRef, isDragging]
   );
 
-  const handleMouseDown = () => {
-    setIsDragging(true);
-  };
-  const handleMouseUp = () => {
+  const handleMouseDown = useCallback(() => {
+    if (!isNaN(audioRef.current.duration)) {
+      setIsDragging(true);
+      audioRef.current.pause();
+    }
+  }, [audioRef]);
+
+  const handleMouseUp = useCallback(() => {
     setIsDragging(false);
-  };
+    const audioSeeked = getNodeByID("audio-seeked");
+    const percentage = audioSeeked.style.width.split("%")[0];
+    setPlayAt((audioRef.current.duration / 100) * percentage);
+    audioRef.current.currentTime =
+      (audioRef.current.duration / 100) * percentage;
+  }, [audioRef, setPlayAt]);
 
   useEffect(() => {
-    const ref = thumbRef.current;
-    ref.addEventListener('mousedown', handleMouseDown);
-    document.addEventListener('mouseup', handleMouseUp);
-    document.addEventListener('mousemove', handleMouseMove);
+    getNodeByID("seeker-thumb").addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("mouseup", handleMouseUp);
+    document.addEventListener("mousemove", handleMouseMove);
     return () => {
-      ref?.removeEventListener('mousedown', handleMouseDown);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.removeEventListener('mousemove', handleMouseMove);
+      getNodeByID("seeker-thumb").removeEventListener(
+        "mousedown",
+        handleMouseDown
+      );
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener("mousemove", handleMouseMove);
     };
-  }, [handleMouseMove, isDragging]);
+  }, [handleMouseDown, handleMouseMove, handleMouseUp]);
 
   return (
-    // track
-    <div ref={seekerRef} id='seeker-track' className='w-full rounded-md shadow-sm h-2 bg-white relative cursor-pointer z-50'>
-      {/* thumb */}
+    <div
+      id="seeker-track"
+      className="w-full rounded-md shadow-sm h-2 bg-white relative cursor-pointer z-50"
+    >
       <span
-        ref={thumbRef}
-        id='seeker-thumb'
-        className='w-4 h-4 bg-teal-500 hover:bg-teal-600 inline-block rounded-full absolute top-[-4px] cursor-pointer z-30'
-        style={{
-          left: '0%',
-        }}
+        id="seeker-thumb"
+        className="w-4 left-0 translate-x-[-50%] h-4 bg-teal-500 hover:bg-teal-600 inline-block rounded-full absolute top-[-4px] cursor-pointer z-30"
       ></span>
-      {/* seeker */}
-      <div ref={audioSeekedRef} id='audio-seeked' className='w-0 rounded-md h-2 bg-blue-400 relative cursor-pointer z-10'></div>
+      <div
+        id="audio-seeked"
+        className="w-0 rounded-md h-2 bg-blue-400 relative cursor-pointer z-10"
+      ></div>
     </div>
   );
 };
