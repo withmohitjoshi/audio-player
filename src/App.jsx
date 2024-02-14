@@ -19,6 +19,7 @@ const App = () => {
   const [isLoadingFile, setIsLoadingFile] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playAt, setPlayAt] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
 
   // checked
   const requestAnimationFrame = useCallback(() => {
@@ -63,6 +64,9 @@ const App = () => {
           setPlayAt(audioRef.current.currentTime);
           setIsPlaying(false);
         };
+        audioRef.current.onvolumechange = () => {
+          setIsMuted(audioRef.current.volume === 0 ? true : false);
+        };
         audioRef.current.onended = () => {
           getNodeByID('audio-passed-duration').innerText = '00:00';
           moveSeeker();
@@ -89,9 +93,9 @@ const App = () => {
           setPlayAt(audioRef.current.currentTime);
         } else {
           moveSeeker();
-          audioRef.current.currentTime = 0;
-          getNodeByID('audio-passed-duration').innerText = '00:00';
-          setPlayAt(0);
+          audioRef.current.currentTime = audioRef.current.duration;
+          getNodeByID('audio-passed-duration').innerText = formatAudioDuration(audioRef.current.currentTime);
+          setPlayAt(audioRef.current.currentTime);
         }
       }
     },
@@ -155,22 +159,13 @@ const App = () => {
               <SeekNext5Icon />
             </span>
           </div>
-          {/* <span
-            className='cursor-pointer'
-            onClick={() => {
-              if (audioRef.current.volume === 0) {
-                audioRef.current.volume === 1;
-              } else {
-                audioRef.current.volume === 1;
-              }
-            }}
-          >
-            {audioRef.current.volume === 0 ? <VolumeMax /> : <VolumeZero />}
-          </span> */}
+          <span className='cursor-pointer' onClick={() => (audioRef.current.volume === 0 ? (audioRef.current.volume = 1) : (audioRef.current.volume = 0))}>
+            {!isMuted ? <VolumeMax /> : <VolumeZero />}
+          </span>
         </div>
         <div className='w-full flex justify-between items-center gap-4 text-slate-500'>
           <span id='audio-passed-duration'>00:00</span>
-          <Seeker audioRef={audioRef} setPlayAt={setPlayAt} isAudioLoaded={isAudioLoaded} />
+          <Seeker audioRef={audioRef} setPlayAt={setPlayAt} isAudioLoaded={isAudioLoaded} requestAnimationFrame={requestAnimationFrame} />
           <span>{audioRef.current?.duration ? formatAudioDuration(audioRef.current.duration) : '00:00'}</span>
         </div>
       </div>
@@ -180,13 +175,14 @@ const App = () => {
 
 export default App;
 
-const Seeker = ({ audioRef, setPlayAt, isAudioLoaded }) => {
+const Seeker = ({ audioRef, setPlayAt, isAudioLoaded, requestAnimationFrame }) => {
   const [isDragging, setIsDragging] = useState(false);
 
   // checked
   const handleMouseMove = useCallback(
     (e) => {
       if (!isDragging) return;
+      cancelAnimationFrame(requestFramID);
       const seekerTrackRect = getNodeByID('seeker-track').getBoundingClientRect();
       const offsetX = e.clientX - seekerTrackRect.left;
       let percentage = (offsetX / seekerTrackRect.width) * 100;
@@ -207,9 +203,8 @@ const Seeker = ({ audioRef, setPlayAt, isAudioLoaded }) => {
   const handleMouseDown = useCallback(() => {
     if (isAudioLoaded) {
       setIsDragging(true);
-      audioRef.current.pause();
     }
-  }, [audioRef, isAudioLoaded]);
+  }, [isAudioLoaded]);
 
   // checked
   const handleMouseUp = useCallback(() => {
@@ -219,9 +214,9 @@ const Seeker = ({ audioRef, setPlayAt, isAudioLoaded }) => {
       const percentage = audioSeeked.style.width.split('%')[0];
       setPlayAt((audioRef.current.duration / 100) * percentage);
       audioRef.current.currentTime = (audioRef.current.duration / 100) * percentage;
-      audioRef.current.play();
+      requestAnimationFrame();
     }
-  }, [audioRef, isAudioLoaded, isDragging, setPlayAt]);
+  }, [audioRef, isAudioLoaded, isDragging, requestAnimationFrame, setPlayAt]);
 
   // checked
   useEffect(() => {
