@@ -30,20 +30,23 @@ const App = () => {
   }, []);
 
   // checked
-  const handlePlayAudio = (playAtTime) => {
-    if (isAudioLoaded) {
-      audioRef.current.currentTime = playAtTime;
-      setPlayAt(playAtTime);
-      audioRef.current.play();
-    }
-  };
+  const handlePlayAudio = useCallback(
+    (playAtTime) => {
+      if (isAudioLoaded) {
+        audioRef.current.currentTime = playAtTime;
+        setPlayAt(playAtTime);
+        audioRef.current.play();
+      }
+    },
+    [isAudioLoaded]
+  );
 
   // checked
-  const handlePauseAudio = () => {
+  const handlePauseAudio = useCallback(() => {
     if (isAudioLoaded) {
       audioRef.current.pause();
     }
-  };
+  }, [isAudioLoaded]);
 
   // checked
   const handleLoadAudioFile = useCallback(
@@ -111,6 +114,40 @@ const App = () => {
       setIsLoadingFile(false);
     };
   }, [audioFile, handleLoadAudioFile]);
+
+  // checked
+  const keyPressActions = useCallback(
+    (e) => {
+      if (isAudioLoaded) {
+        switch (e.key) {
+          case ' ':
+            if (isPlaying) handlePauseAudio();
+            else handlePlayAudio(audioRef.current.currentTime);
+            break;
+          case 'ArrowRight':
+            handleSeekWithTime(5);
+            break;
+          case 'ArrowLeft':
+            handleSeekWithTime(-5);
+            break;
+          case 'm':
+            audioRef.current.volume === 0 ? (audioRef.current.volume = 1) : (audioRef.current.volume = 0);
+            break;
+
+          default:
+            break;
+        }
+      }
+    },
+    [handlePauseAudio, handlePlayAudio, handleSeekWithTime, isAudioLoaded, isPlaying]
+  );
+
+  useEffect(() => {
+    document.addEventListener('keydown', keyPressActions);
+    return () => {
+      document.removeEventListener('keydown', keyPressActions);
+    };
+  }, [isAudioLoaded, keyPressActions]);
 
   return (
     <div className='flex gap-8 items-start flex-col mx-auto select-none p-8' id='audio-player-container'>
