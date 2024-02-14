@@ -12,7 +12,7 @@ const moveSeeker = (percentage = 0) => {
 };
 
 const App = () => {
-  const { PlayIcon, PauseIcon, SeekBack5Icon, SeekNext5Icon, SipnnerIcon } = useIcons();
+  const { PlayIcon, PauseIcon, SeekBack5Icon, SeekNext5Icon, SipnnerIcon, AudioIcon, VolumeMax, VolumeZero } = useIcons();
   const audioRef = useRef(new Audio());
   const [audioFile, setAudioFile] = useState(null);
   const [isAudioLoaded, setIsAudioLoaded] = useState(false);
@@ -78,6 +78,27 @@ const App = () => {
   );
 
   // checked
+  const handleSeekWithTime = useCallback(
+    (seconds) => {
+      if (isAudioLoaded) {
+        if (audioRef.current.currentTime + seconds > 0 && audioRef.current.currentTime + seconds < audioRef.current.duration) {
+          audioRef.current.currentTime = audioRef.current.currentTime + seconds;
+          const percentage = (audioRef.current.currentTime / audioRef.current.duration) * 100;
+          moveSeeker(percentage);
+          getNodeByID('audio-passed-duration').innerText = formatAudioDuration(audioRef.current.currentTime);
+          setPlayAt(audioRef.current.currentTime);
+        } else {
+          moveSeeker();
+          audioRef.current.currentTime = 0;
+          getNodeByID('audio-passed-duration').innerText = '00:00';
+          setPlayAt(0);
+        }
+      }
+    },
+    [isAudioLoaded]
+  );
+
+  // checked
   useEffect(() => {
     if (audioFile) {
       handleLoadAudioFile(audioFile);
@@ -88,8 +109,13 @@ const App = () => {
   }, [audioFile, handleLoadAudioFile]);
 
   return (
-    <div className='flex gap-8 items-start flex-col mx-auto select-none' id='audio-player-container'>
+    <div className='flex gap-8 items-start flex-col mx-auto select-none p-8' id='audio-player-container'>
       <input
+        className='mx-auto block text-sm text-black
+        file:mr-2 file:py-2 file:px-4 file:rounded-md
+        file:border-0 file:text-sm file:font-semibold
+        file:bg-teal-500 file:text-white
+        hover:file:bg-teal-600 cursor-pointer file:cursor-pointer'
         type='file'
         accept='audio/*'
         onChange={(e) => {
@@ -97,33 +123,50 @@ const App = () => {
           e.target.value = '';
         }}
       />
-      <div className='p-4 w-2/3 bg-teal-300 m-4 rounded-md shadow-md flex flex-col gap-4'>
-        <div className='w-full flex gap-8 items-center justify-center [&>*]:cursor-pointer'>
-          <span>
-            <SeekBack5Icon />
+      <div className='p-4 w-full bg-teal-300 rounded-md shadow-md flex flex-col gap-4'>
+        <div className='flex justify-between w-full'>
+          <span className='flex gap-2 text-slate-500 cursor-pointer'>
+            <AudioIcon /> {audioFile?.name}
           </span>
-          {!isLoadingFile && (
-            <>
-              {!isPlaying && (
-                <span onClick={() => handlePlayAudio(playAt)}>
-                  <PlayIcon />
-                </span>
-              )}
-              {isPlaying && (
-                <span onClick={() => handlePauseAudio()}>
-                  <PauseIcon />
-                </span>
-              )}
-            </>
-          )}
-          {isLoadingFile && (
-            <span className='animate-spin duration-300'>
-              <SipnnerIcon />
+          <div className='w-full flex gap-8 items-center justify-center [&>*]:cursor-pointer'>
+            <span onClick={() => handleSeekWithTime(-5)}>
+              <SeekBack5Icon />
             </span>
-          )}
-          <span>
-            <SeekNext5Icon />
-          </span>
+            {!isLoadingFile && (
+              <>
+                {!isPlaying && (
+                  <span onClick={() => handlePlayAudio(playAt)}>
+                    <PlayIcon />
+                  </span>
+                )}
+                {isPlaying && (
+                  <span onClick={() => handlePauseAudio()}>
+                    <PauseIcon />
+                  </span>
+                )}
+              </>
+            )}
+            {isLoadingFile && (
+              <span className='animate-spin duration-300'>
+                <SipnnerIcon />
+              </span>
+            )}
+            <span onClick={() => handleSeekWithTime(5)}>
+              <SeekNext5Icon />
+            </span>
+          </div>
+          {/* <span
+            className='cursor-pointer'
+            onClick={() => {
+              if (audioRef.current.volume === 0) {
+                audioRef.current.volume === 1;
+              } else {
+                audioRef.current.volume === 1;
+              }
+            }}
+          >
+            {audioRef.current.volume === 0 ? <VolumeMax /> : <VolumeZero />}
+          </span> */}
         </div>
         <div className='w-full flex justify-between items-center gap-4 text-slate-500'>
           <span id='audio-passed-duration'>00:00</span>
@@ -180,6 +223,7 @@ const Seeker = ({ audioRef, setPlayAt, isAudioLoaded }) => {
     }
   }, [audioRef, isAudioLoaded, isDragging, setPlayAt]);
 
+  // checked
   useEffect(() => {
     if (isAudioLoaded) {
       getNodeByID('seeker-thumb').addEventListener('mousedown', handleMouseDown);
