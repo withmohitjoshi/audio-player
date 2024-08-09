@@ -1,8 +1,40 @@
-# React + Vite
+# Custom Audio Player
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A simple audio player built with React to showcase DOM manipulation techniques.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Play and pause audio
+- Adjust volume
+- Display current playback time
+- Simple and clean UI design
+
+## Running the app
+
+Clone the repository
+
+```
+git clone https://github.com/withmohitjoshi/audio-player.git
+```
+
+Navigate to the directory
+
+```
+cd ./audio-player
+```
+
+Install dependencies:
+
+```
+npm install
+```
+
+Start the development server
+
+```
+npm dev
+```
+
+## Snapshot
+
+<img src="./snapshots/snap_1.png" />
