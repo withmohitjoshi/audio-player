@@ -166,10 +166,10 @@ const App = () => {
       />
       <div className='p-4 w-full bg-teal-300 rounded-md shadow-md flex flex-col gap-4'>
         <div className='flex justify-between items-center w-full'>
-          <span className='flex gap-2 text-slate-500 cursor-pointer w-full'>
-            <AudioIcon /> {audioFile?.name}
+          <span className='text-slate-500 cursor-pointer text-nowrap flex gap-1 items-center w-fit'>
+            <AudioIcon /> <span className='text-sm'>{audioFile?.name}</span>
           </span>
-          <div className='flex gap-8 items-center justify-center [&>*]:cursor-pointer w-full '>
+          <div className='flex gap-8 items-center justify-center [&>*]:cursor-pointer w-full'>
             <span onClick={() => handleSeekWithTime(-5)}>
               <SeekBack5Icon />
             </span>
@@ -196,7 +196,7 @@ const App = () => {
               <SeekNext5Icon />
             </span>
           </div>
-          <span className='cursor-pointer flex w-full ' onClick={() => (audioRef.current.volume === 0 ? (audioRef.current.volume = 1) : (audioRef.current.volume = 0))}>
+          <span className='cursor-pointer mx-auto' onClick={() => (audioRef.current.volume === 0 ? (audioRef.current.volume = 1) : (audioRef.current.volume = 0))}>
             {!isMuted ? <VolumeMax /> : <VolumeZero />}
           </span>
         </div>
